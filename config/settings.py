@@ -12,10 +12,11 @@ load_dotenv()
 
 @dataclass
 class ExchangeConfig:
-    name: str = "binance"
+    name: str = os.getenv("EXCHANGE_NAME", "binance")
     api_key: str = os.getenv("API_KEY", "")
     api_secret: str = os.getenv("API_SECRET", "")
     testnet: bool = True
+    demo: bool = os.getenv("DEMO", "false").lower() == "true"
     rate_limit: int = 1200
 
 
@@ -49,8 +50,8 @@ class StrategyConfig:
     rsi_period: int = 14
     rsi_overbought: float = 70.0
     rsi_oversold: float = 30.0
-    rsi_scalp_upper: float = 60.0
-    rsi_scalp_lower: float = 40.0
+    rsi_scalp_upper: float = 55.0
+    rsi_scalp_lower: float = 45.0
     atr_period: int = 14
     atr_multiplier: float = 1.5
     min_atr_threshold: float = 0.0005
@@ -91,7 +92,7 @@ class RiskConfig:
     max_daily_loss_pct: float = 0.03
     max_drawdown_pct: float = 0.05
     max_consecutive_losses: int = 5
-    daily_trade_limit: int = 50
+    daily_trade_limit: int = 100
     pause_after_loss_streak: int = 300
     max_position_size_pct: float = 0.1
     max_position_per_symbol_pct: float = 0.15

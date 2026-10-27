@@ -79,14 +79,23 @@ class RiskManager:
         self.last_trade_time = None
         self.pause_until = None
         self.trade_log: List[Dict] = []
+        self._current_day = datetime.utcnow().date()
         # Portfolio heat: per-symbol notional exposure
         self.symbol_exposure: Dict[str, float] = {}
         self.open_positions: Dict[str, Dict] = {}
         # Circuit breaker
         self.circuit_breaker = CircuitBreaker(config.risk, config.scalping.initial_capital)
 
+    def _check_daily_reset(self, now = None):
+        now = now or datetime.utcnow()
+        current_day = now.date()
+        if current_day != self._current_day:
+            self.reset_daily()
+            self._current_day = current_day
+
     def can_trade(self, now: Optional[datetime] = None) -> Tuple[bool, str]:
         now = now or datetime.now()
+        self._check_daily_reset(datetime.utcnow())
 
         # Circuit breaker check
         halted, reason = self.circuit_breaker.is_halted()

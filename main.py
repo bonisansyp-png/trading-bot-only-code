@@ -239,10 +239,28 @@ class UnifiedCryptoBot:
 
 if __name__ == "__main__":
     mode = "paper"
+    demo_flag = False
     if len(sys.argv) > 1:
-        mode = sys.argv[1].lower()
+        for arg in sys.argv[1:]:
+            if arg == "--demo":
+                demo_flag = True
+                continue
+            if arg.lower() in ("live", "paper"):
+                mode = arg.lower()
+                continue
+            if arg.lower().startswith("--mode="):
+                mode = arg.lower().split("=", 1)[1]
+                continue
 
     cfg = BotConfig()
+    if demo_flag:
+        cfg.exchange.demo = True
+        cfg.exchange.testnet = False
+        mode = "live"
     cfg.mode = mode
+    if cfg.mode == "live":
+        if not cfg.exchange.api_key or not cfg.exchange.api_secret:
+            logger.error("API key or secret missing for live mode")
+            sys.exit(1)
     bot = UnifiedCryptoBot(cfg)
     bot.run()

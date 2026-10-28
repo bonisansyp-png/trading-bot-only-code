@@ -64,11 +64,11 @@ class EmaRsiAtrStrategy(BaseStrategy):
         ema_medium = last['ema_medium']
         ema_slow = last['ema_slow']
         rsi = last['rsi']
-        vol_ok = last['volume'] > (last['vol_sma'] * c.min_volume_multiplier) if 'vol_sma' in last and 'volume' in last else False
+        vol_ok = last['volume'] > (last['vol_sma'] * c.min_volume_multiplier) if 'vol_sma' in last and 'volume' in last else True
 
         # LONG: Fast > Med > Slow + RSI in bullish scalp band + Vol confirmation
         if (ema_fast > ema_medium > ema_slow and vol_ok and
-                rsi >= 45 and rsi <= 55 and
+                rsi >= 40 and rsi <= 60 and
                 prev['ema_fast'] <= prev['ema_medium']):
             sl = price - (atr * c.atr_multiplier * 0.8)
             tp = price + (atr * c.atr_multiplier * 2.5)
@@ -77,7 +77,7 @@ class EmaRsiAtrStrategy(BaseStrategy):
 
         # SHORT: Fast < Med < Slow + RSI in bearish scalp band
         if (ema_fast < ema_medium < ema_slow and vol_ok and
-                rsi >= 45 and rsi <= 55 and
+                rsi >= 40 and rsi <= 60 and
                 prev['ema_fast'] >= prev['ema_medium']):
             sl = price + (atr * c.atr_multiplier * 0.8)
             tp = price - (atr * c.atr_multiplier * 2.5)
@@ -109,14 +109,14 @@ class MomentumScalperStrategy(BaseStrategy):
         bb_middle = last['bb_middle']
 
         # LONG: Bounce off lower BB + RSI oversold + MACD turning up
-        if (price <= bb_lower * 1.002 and rsi < 25 and macd_hist > prev['macd_hist']):
+        if (price <= bb_lower * 1.002 and rsi < 30 and macd_hist > prev['macd_hist']):
             sl = price - (atr * 1.5)
             tp = bb_middle * 1.002
             confidence = 0.85 if rsi < c.rsi_oversold else 0.65
             return TradeSetup(Signal.LONG, price, sl, tp, confidence, self.name)
 
         # SHORT: Reject from upper BB + RSI overbought + MACD turning down
-        if (price >= bb_upper * 0.998 and rsi > 75 and macd_hist < prev['macd_hist']):
+        if (price >= bb_upper * 0.998 and rsi > 70 and macd_hist < prev['macd_hist']):
             sl = price + (atr * 1.5)
             tp = bb_middle * 0.998
             confidence = 0.85 if rsi > c.rsi_overbought else 0.65
@@ -144,7 +144,7 @@ class GridScalperStrategy(BaseStrategy):
         # Grid LONG: Price below EMA
         if price < ema * (1 - sc.grid_spacing_pct * 1.5):
             levels = min(sc.grid_levels, int((ema - price) / (price * sc.grid_spacing_pct)))
-            if levels >= 2 and rsi < 40:
+            if levels >= 1 and rsi < 45:
                 sl = price - (atr * 2)
                 tp = ema
                 confidence = min(0.85, 0.5 + (levels * 0.15))
@@ -153,7 +153,7 @@ class GridScalperStrategy(BaseStrategy):
         # Grid SHORT: Price above EMA
         if price > ema * (1 + sc.grid_spacing_pct * 1.5):
             levels = min(sc.grid_levels, int((price - ema) / (price * sc.grid_spacing_pct)))
-            if levels >= 2 and rsi > 60:
+            if levels >= 1 and rsi > 55:
                 sl = price + (atr * 2)
                 tp = ema
                 confidence = min(0.85, 0.5 + (levels * 0.15))
@@ -221,11 +221,11 @@ class KairiDisparityStrategy(BaseStrategy):
         is_crash = disparity <= c.disparity_crash_threshold
         threshold = c.disparity_crash_threshold if is_crash else c.disparity_panic_threshold
 
-        vol_spike = last['volume'] > (last['vol_sma'] * 1.25) if 'vol_sma' in last and 'volume' in last else False
-        rsi_oversold = last.get('rsi', 50) < 30
+        vol_spike = last['volume'] > (last['vol_sma'] * 1.25) if 'vol_sma' in last and 'volume' in last else True
+        rsi_oversold = last.get('rsi', 50) < 35
 
         # PANIC BUY: Deep negative disparity + seller exhaustion signals
-        if disparity <= threshold and rsi_oversold and vol_spike:
+        if disparity <= threshold and (vol_spike or rsi_oversold):
             sl = price * (1 - c.disparity_sl_pct * 0.8)
             tp = price * (1 + c.disparity_tp_pct * 1.2)
             confidence = min(0.98, 0.75 + abs(disparity) * 0.025)
@@ -308,14 +308,14 @@ class CombinedStrategy(BaseStrategy):
             return disparity_signals[0]
 
         # Multi-strategy consensus
-        if len(long_signals) >= 3:
+        if len(long_signals) >= 2:
             best = max(long_signals, key=lambda x: x.confidence)
             avg_conf = sum(s.confidence for s in long_signals) / len(long_signals)
             best.confidence = min(0.96, avg_conf + 0.1)
             best.strategy_name = f"combined({','.join(s.strategy_name for s in long_signals)})"
             return best
 
-        if len(short_signals) >= 3:
+        if len(short_signals) >= 2:
             best = max(short_signals, key=lambda x: x.confidence)
             avg_conf = sum(s.confidence for s in short_signals) / len(short_signals)
             best.confidence = min(0.96, avg_conf + 0.1)
@@ -324,7 +324,7 @@ class CombinedStrategy(BaseStrategy):
 
         # High confidence single signal
         best_single = max(signals, key=lambda x: x.confidence)
-        if best_single.confidence >= 0.90:
+        if best_single.confidence >= 0.85:
             return best_single
 
         return TradeSetup(Signal.HOLD)

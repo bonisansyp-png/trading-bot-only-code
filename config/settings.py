@@ -50,8 +50,8 @@ class StrategyConfig:
     rsi_period: int = 14
     rsi_overbought: float = 70.0
     rsi_oversold: float = 30.0
-    rsi_scalp_upper: float = 55.0
-    rsi_scalp_lower: float = 45.0
+    rsi_scalp_upper: float = 60.0
+    rsi_scalp_lower: float = 40.0
     atr_period: int = 14
     atr_multiplier: float = 1.5
     min_atr_threshold: float = 0.0005
